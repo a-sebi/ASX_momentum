@@ -38,6 +38,7 @@ from datetime import date, timedelta
 import XJOlist
 import glob
 
+# Function to pull ASX200 from previous month, or re-download if older than 30 days
 def ASX200_month_data():
     day_today = date.today()
     days_in_month = 365 / 12
@@ -59,51 +60,16 @@ def ASX200_month_data():
 
     return results_file
 
-filename = ASX200_month_data()
-
-# Retrieve ASX200 as a dataframe
-# ticker_df = pd.read_csv("Results/20230114-ASX200.csv")
-ticker_df = pd.read_csv(filename)
-
-# Use ticker_df[1] if reading from Wikipedia for the ASX200, that means it's the second table retrieved.
-#ticker_df[1]
-
-# ticker_df can be used directly if uploaded from csv
-ticker_df
-
-# Convert Code column (tickers) to a list
-# Again, ticker_df[1] only if reading from Wikipedia. Also "Code" corresponds to the ticker column in that case
-#tickers = ticker_df[1].Code.to_list()
-tickers = ticker_df.Ticker.to_list()
-
 # Append .AX to each ticker to correspond to the ASX
 def add_to_end(s, end='.AX'):
     return s + end
 
-result = list(map(add_to_end, tickers))
-
-# Store price data (close prices) from 2018-01-01 in a new dataframe for each ticker in the list
-df = yf.download(result,start='2018-01-01')['Adj Close']
-
-# Drop all columns with NaN cell values, this is to reduce Survivorship Bias in the backtest
-df = df.dropna(axis=1)
-
-# Resample data and calculate monthly returns
-mtl = (df.pct_change() +1)[1:].resample('M').prod()
-
-# Create function to calculate rolling returns
-def get_rolling_ret(df,n):
-    return df.rolling(n).apply(np.prod)
-
-# Get 12, 6 and 3 months rolling return data frames
-# Note that for the 12 month return needs the first 11 rows discarded as they will be NaN. 5 for 6 month and 2 for 3 month.
-ret_12, ret_6, ret_3 = get_rolling_ret(mtl,12),get_rolling_ret(mtl,6),get_rolling_ret(mtl,3)
-
+# Retrieve top 10 stocks based on returns, filtered from 12 to 6 to 3 month return windows
+def get_top_index(date):
 # Get Top 50 stocks in 12 month window. Use nlargest to sort for top 50
 # Do the same for top 30 with 6 month return
 # Do the same for top 10 with 3 month return
 # Implementing the above in a function where date is 'yyyy-mm-dd'
-def get_top_index(date):
     top_50 = ret_12.loc[date].nlargest(50).index
     top_30 = ret_6.loc[date, top_50].nlargest(30).index
     top_10 = ret_3.loc[date, top_30].nlargest(10).index
@@ -114,31 +80,80 @@ def pf_performance(date):
     portfolio = mtl.loc[date:,get_top_index(date)][1:2]
     return portfolio.mean(axis=1).values[0]
 
-returns = []
-for date in mtl.index[:-1]:
-    returns.append(pf_performance(date))
+# Backtest
+def pf_backtest():
 
-# Convert this to a series
-# Take cumulative product to see the equity curve
-pd.Series(returns,index=mtl.index[1:]).cumprod().plot()
+    returns = []
+    for date in mtl.index[:-1]:
+        returns.append(pf_performance(date))
 
-# Compare the performance of this strategy against the ASX200 XJO
-nas_df = yf.download('^AXJO',start='2018-01-01')
-(nas_df['Adj Close'].pct_change() +1).cumprod().plot()
+    # Convert this to a series
+    # Take cumulative product to see the equity curve
+    pd.Series(returns,index=mtl.index[1:]).cumprod().plot()
 
-# Resample data and calculate monthly returns
-mtl_xjo = (nas_df.pct_change() +1)[1:].resample('M').prod()
+    # Compare the performance of this strategy against the ASX200 XJO
+    nas_df = yf.download('^AXJO',start='2018-01-01')
+    (nas_df['Adj Close'].pct_change() +1).cumprod().plot()
 
-# Get 3 month rolling return
-ret_3_xjo = get_rolling_ret(mtl_xjo,3)
-ret_3_xjo
+    # Resample data and calculate monthly returns
+    mtl_xjo = (nas_df.pct_change() +1)[1:].resample('M').prod()
 
-ret_3
+    # Get 3 month rolling return
+    ret_3_xjo = get_rolling_ret(mtl_xjo,3)
+    ret_3_xjo
 
-# Save top10 list
-top10_list = get_top_index('2022-12-31').to_list()
-top10_list
+    ret_3
 
-# Find 3 month returns of top10 list to compare against momentum of XJO
-ret_3[top10_list]
-#ret_3.query('Ticker in @top10_list')
+# Calculate rolling return of individual stock
+def get_ticker_ret(ticker):
+
+    df_tick = yf.download(ticker,start='2020-01-01')['Adj Close']
+    df_tick = df_tick.dropna(axis=1)
+    mtl_tick = (df.pct_change() + 1)[1:].resample('M').prod()
+    tick_12, tick_6, tick_3 = get_rolling_ret(mtl_tick,12),get_rolling_ret(mtl_tick,6),get_rolling_ret(mtl_tick,3)
+
+# Calculate rolling returns of datafram
+def get_rolling_ret(df,n):
+    return df.rolling(n).apply(np.prod)
+# Set filename (.csv) to use
+filename = ASX200_month_data()
+
+# Download financial data with yfinance
+def yfin_download(ticker, date):
+
+    df = yf.download(ticker,start=date)['Adj Close']
+
+# Calculate momentum of ASX200
+def xjo_momentum():
+    # Retrieve ASX200 as a dataframe
+    # ticker_df = pd.read_csv("Results/20230114-ASX200.csv")
+    ticker_df = pd.read_csv(filename)
+
+    # Convert Code column (tickers) to a list
+    # Again, ticker_df[1] only if reading from Wikipedia. Also "Code" corresponds to the ticker column in that case
+    #tickers = ticker_df[1].Code.to_list()
+    tickers = ticker_df.Ticker.to_list()
+
+    result = list(map(add_to_end, tickers))
+
+    # Store price data (close prices) from 2018-01-01 in a new dataframe for each ticker in the list
+    # df = yf.download(result,start='2018-01-01')['Adj Close']
+    df = yfin_download(result,'2018-01-01')
+
+    # Drop all columns with NaN cell values, this is to reduce Survivorship Bias in the backtest
+    df = df.dropna(axis=1)
+
+    # Resample data and calculate monthly returns
+    mtl = (df.pct_change() +1)[1:].resample('M').prod()
+
+    # Get 12, 6 and 3 months rolling return data frames
+    # Note that for the 12 month return needs the first 11 rows discarded as they will be NaN. 5 for 6 month and 2 for 3 month.
+    ret_12, ret_6, ret_3 = get_rolling_ret(mtl,12),get_rolling_ret(mtl,6),get_rolling_ret(mtl,3)
+
+    # Save top10 list
+    top10_list = get_top_index('2022-12-31').to_list()
+    top10_list
+
+    # Find 3 month returns of top10 list to compare against momentum of XJO
+    ret_3[top10_list]
+    #ret_3.query('Ticker in @top10_list')
