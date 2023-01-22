@@ -1,0 +1,144 @@
+#+title:      Momentum Trading Strategy using Python
+#+date:       [2023-01-08 Sun 15:16]
+#+filetags:   programming
+#+identifier: 20230108T151649
+
+Momentum trading strategy explained by Algovibes on Youtube.
+[[https://www.youtube.com/watch?v=bUejGzheCac][https://www.youtube.com/watch?v=bUejGzheCac]]
+
+The strategy uses the NASDAQ100, but we can test it against the ASX200. It's also worth noting that the code does not consider Survivorship Bias but instead removes stocks that would be affected by Survivorship Bias. That is to say that stocks with missing data for the backtest are excluded from the analysis.
+
+For future trading, Survivorship Bias is not relevant as it is only used for backtesting analysis. If you are confident in the strategy then it can be used.
+
+* Rules
+Trade frequency: Monthly
+
+1. Select best 50 stocks of Nasdaq100 by % change of last 12 months
+2. Among this, select best 30 stocks by % change in last 6 months
+3. Among this, select best 10 shares by % change in last 3 months
+4. Repeat analysis on a fixed day (for example third Friday), monthly
+
+It is explained that this strategy is from the book "Strategy summary, backtest graph and backtest metrics (2005-2021)" and "Portafogli per l'investitore' Luca Giusti, Hoepli Editore (2022)".
+
+* Python Code
+#+begin_src python :session :results output
+print("test2")
+#+end_src
+
+#+RESULTS:
+: test2
+
+
+#+begin_src python :session :results output
+# # """"
+# # # ASX200 Data Web Scraper
+# # The ASX200 Web Scraper python program scrapes the current ASX200 constituents from TradingView.
+
+# # This then saves the data as a `csv` file which can be imported and utilised.
+# """
+
+import pandas as pd
+import yfinance as yf
+import numpy as np
+
+# Retrieve ASX200 as a dataframe
+#ticker_df = pd.read_html("https://en.wikipedia.org/wiki/ASX_200")
+#ticker_df = pd.read_html("https://en.wikipedia.org/wiki/Nasdaq-100")
+ticker_df = pd.read_csv("Results/20230114-ASX200.csv")
+tail(ticker_df)
+
+#+end_src
+
+#+RESULTS:
+
+#+begin_src python :session
+# Convert Code column (tickers) to a list
+# Again, ticker_df[1] only if reading from Wikipedia. Also "Code" corresponds to the ticker column in that case
+#tickers = ticker_df[1].Code.to_list()
+tickers = ticker_df.Ticker.to_list()
+
+# Append .AX to each ticker to correspond to the ASX
+def add_to_end(s, end='.AX'):
+    return s + end
+
+result = list(map(add_to_end, tickers))
+
+# Store price data (close prices) from 2018-01-01 in a new dataframe for each ticker in the list
+df = yf.download(result,start='2018-01-01')['Adj Close']
+
+# Drop all columns with NaN cell values, this is to reduce Survivorship Bias in the backtest
+df = df.dropna(axis=1)
+
+# Resample data and calculate monthly returns
+mtl = (df.pct_change() +1)[1:].resample('M').prod()
+
+# Create function to calculate rolling returns
+def get_rolling_ret(df,n):
+    return df.rolling(n).apply(np.prod)
+
+# Get 12, 6 and 3 months rolling return data frames
+# Note that for the 12 month return needs the first 11 rows discarded as they will be NaN. 5 for 6 month and 2 for 3 month.
+ret_12, ret_6, ret_3 = get_rolling_ret(mtl,12),get_rolling_ret(mtl,6),get_rolling_ret(mtl,3)
+
+# Get Top 50 stocks in 12 month window. Use nlargest to sort for top 50
+# Do the same for top 30 with 6 month return
+# Do the same for top 10 with 3 month return
+# Implementing the above in a function where date is 'yyyy-mm-dd'
+def get_top_index(date):
+    top_50 = ret_12.loc[date].nlargest(50).index
+    top_30 = ret_6.loc[date, top_50].nlargest(30).index
+    top_10 = ret_3.loc[date, top_30].nlargest(10).index
+    return top_10
+
+# Creating a portfolio based on the strategy (for backtesting)
+def pf_performance(date):
+    portfolio = mtl.loc[date:,get_top_index(date)][1:2]
+    return portfolio.mean(axis=1).values[0]
+
+returns = []
+for date in mtl.index[:-1]:
+    returns.append(pf_performance(date))
+
+#+end_src
+
+#+RESULTS:
+
+#+begin_src python :session :results output
+# Convert this to a series
+# Take cumulative product to see the equity curve
+pd.Series(returns,index=mtl.index[1:]).cumprod().plot()
+#+end_src
+
+#+RESULTS:
+
+#+begin_src python :session :results output
+# Compare the performance of this strategy against the ASX200 XJO
+nas_df = yf.download('^AXJO',start='2018-01-01')
+(nas_df['Adj Close'].pct_change() +1).cumprod().plot()
+#+end_src
+
+#+RESULTS:
+
+#+begin_src python :session :results
+# Resample data and calculate monthly returns
+mtl_xjo = (nas_df.pct_change() +1)[1:].resample('M').prod()
+#+end_src
+
+#+begin_src python :session :results output
+# Get 3 month rolling return
+ret_3_xjo = get_rolling_ret(mtl_xjo,3)
+print(ret_3_xjo)
+#+end_src
+
+#+RESULTS:
+
+ret_3
+
+# Save top10 list
+top10_list = get_top_index('2022-12-31').to_list()
+top10_list
+
+# Find 3 month returns of top10 list to compare against momentum of XJO
+ret_3[top10_list]
+#ret_3.query('Ticker in @top10_list')
+#+end_src
