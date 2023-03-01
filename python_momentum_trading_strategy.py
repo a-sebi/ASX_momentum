@@ -45,11 +45,12 @@ def ASX200_month_data():
     prev_date = day_today - timedelta(days = days_in_month)
 
     # Find filename corresponding to previous month
-    path = '/Results/' + prev_date.year + '-' + prev_date.month + '-' + '*.csv'
+    path = '/Results/' + str(prev_date.year) + '-' + str(prev_date.month) + '-' + '*.csv'
     old_file = glob.glob(path)
+    print(old_file)
 
     # If 30 days have not passed since the last ASX200 results file, use old results file
-    if (today-timedif).days <= days_in_month:
+    if (day_today-prev_date).days <= days_in_month:
         results_file = old_file
     # If 30 days have passed since the last ASX200 results file, redownlod ASX200 info
     else:
@@ -116,7 +117,7 @@ def get_ticker_ret(ticker):
 def get_rolling_ret(df,n):
     return df.rolling(n).apply(np.prod)
 # Set filename (.csv) to use
-filename = ASX200_month_data()
+# filename = ASX200_month_data()
 
 # Download financial data with yfinance
 def yfin_download(ticker, date):
@@ -124,7 +125,7 @@ def yfin_download(ticker, date):
     df = yf.download(ticker,start=date)['Adj Close']
 
 # Calculate momentum of ASX200
-def xjo_momentum():
+def xjo_momentum(filename):
     # Retrieve ASX200 as a dataframe
     # ticker_df = pd.read_csv("Results/20230114-ASX200.csv")
     ticker_df = pd.read_csv(filename)
@@ -137,13 +138,14 @@ def xjo_momentum():
     result = list(map(add_to_end, tickers))
 
     # Store price data (close prices) from 2018-01-01 in a new dataframe for each ticker in the list
-    # df = yf.download(result,start='2018-01-01')['Adj Close']
-    df = yfin_download(result,'2018-01-01')
+    df = yf.download(result,start='2018-01-01')['Adj Close']
+    # df = yfin_download(result,'2018-01-01')
 
     # Drop all columns with NaN cell values, this is to reduce Survivorship Bias in the backtest
     df = df.dropna(axis=1)
 
     # Resample data and calculate monthly returns
+    mtl.index = pd.to_datetime(mtl.index)
     mtl = (df.pct_change() +1)[1:].resample('M').prod()
 
     # Get 12, 6 and 3 months rolling return data frames
@@ -157,3 +159,20 @@ def xjo_momentum():
     # Find 3 month returns of top10 list to compare against momentum of XJO
     ret_3[top10_list]
     #ret_3.query('Ticker in @top10_list')
+
+if __name__ == '__main__':
+
+    print("Enter 'q' at any time to quit.")
+    while True:
+        choice = input("\n1) Check for ASX200 monthly data: \n2) Return Top 10 of ASX200: \n3) Find 3 month returns of Top 10 list: \n")
+        if choice == 'q':
+            break
+        if choice == '1':
+            results = ASX200_month_data()
+            print(results)
+        if choice == '2':
+            date = str(results[0:9])
+            print(date)
+            get_top_index(date)
+        if choice == '3':
+            xjo_momentum(results)

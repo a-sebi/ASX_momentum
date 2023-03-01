@@ -68,23 +68,23 @@ def save_asx200_stocks_info():
     df = pd.concat([df, pd.DataFrame(rows)], ignore_index=True)
 
     # Return dataframe
-    return df
+    # return df
 
-# Call function to retrieve data
-asx200 = save_asx200_stocks_info()
+    # Call function to retrieve data
+    # asx200 = save_asx200_stocks_info()
 
-# Get current date
-date_today = str(date.today())
+    # Get current date
+    date_today = str(date.today())
 
-# Check if Results folder exists, if not create it
-if os.path.exists('Results'):
-    pass
-else:
-    os.makedirs('Results')
+    # Check if Results folder exists, if not create it
+    if os.path.exists('Results'):
+        pass
+    else:
+        os.makedirs('Results')
 
-# Create filename with path
-asx200_filename = os.path.join("Results", (date_today + '_ASX200.csv'))
-# Save dataframe to csv
-asx200.to_csv(asx200_filename)
+    # Create filename with path
+    asx200_filename = os.path.join("Results", (date_today + '_ASX200.csv'))
+    # Save dataframe to csv
+    df.to_csv(asx200_filename)
 
-print("ASX200 data for today's date " + date_today + " saved to " + asx200_filename)
+    print("ASX200 data for today's date " + date_today + " saved to " + asx200_filename)
