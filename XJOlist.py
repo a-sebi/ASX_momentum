@@ -17,13 +17,15 @@ def save_asx200_stocks_info():
     dr.implicitly_wait(10)
 
     # Find button to view all 200 companies
-    button = dr.find_element(By.CLASS_NAME, "loadButton-Hg5JK_G3")
+    # button = dr.find_element(By.CLASS_NAME, "loadButton-Hg5JK_G3")
+    button = dr.find_element(By.CLASS_NAME, "loadButton-SFwfC2e0")
 
     # Use Javascript to click the button rather than a "natural click" implemented by Selenium which has issues
     dr.execute_script("arguments[0].click();", button)
 
     # Wait for the table to fully load, this line checks to see that the button becomes invisible
-    elem = WebDriverWait(dr, 10).until(ec.invisibility_of_element_located((By.CLASS_NAME, "loadButton-Hg5JK_G3")))
+    # elem = WebDriverWait(dr, 10).until(ec.invisibility_of_element_located((By.CLASS_NAME, "loadButton-Hg5JK_G3")))
+    elem = WebDriverWait(dr, 10).until(ec.invisibility_of_element_located((By.CLASS_NAME, "loadButton-SFwfC2e0")))
 
     # Use the webdriver to save the html source (after the table has loaded with all ASX200 companies)
     html = dr.page_source

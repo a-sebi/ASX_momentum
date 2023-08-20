@@ -50,9 +50,9 @@ last_day_prevmonth = calendar.monthrange(prev_date.year,prev_date.month)[1]
 
 # Function to pull ASX200 from previous month, or re-download if older than 30 days
 def ASX200_month_data():
-
     # Find filename corresponding to previous month
-    path = '/Results/' + str(prev_date.year) + '-' + str(prev_date.month) + '-' + '*.csv'
+    path = './Results/' + str(prev_date.year) + '-' + str(prev_date.month) + '-' + '*.csv'
+    # path = '\Results\' + str(prev_date.year) + '-' + str(prev_date.month) + '-' + '*.csv'
     old_file = glob.glob(path)
     print(old_file)
 
