@@ -51,37 +51,42 @@ last_day_prevmonth = calendar.monthrange(prev_date.year,prev_date.month)[1]
 # Function to pull ASX200 from previous month, or re-download if older than 30 days
 def ASX200_month_data():
     # Find filename corresponding to previous month
-    path = './Results/' + str(prev_date.year) + '-' + str(prev_date.month) + '-' + '*.csv'
-    # path = '\Results\' + str(prev_date.year) + '-' + str(prev_date.month) + '-' + '*.csv'
-    old_file = glob.glob(path)
-    print(old_file)
+    path = './Results/' + str(prev_date)[:7] + '*.csv'
+    old_file1 = glob.glob(path)
+    # Find filename corresponding to this month
+    path2 = './Results/' + str(date.today())[:7] + '*.csv'
+    old_file2 = glob.glob(path2)
 
     # If 30 days have not passed since the last ASX200 results file, use old results file
-    if (day_today-prev_date).days <= days_in_month:
-        results_file = old_file
+    if old_file1 or old_file2 and (day_today-prev_date).days <= days_in_month:
+        if old_file1:
+            results_file = old_file
+        elif old_file2:
+            results_file = old_file2
     # If 30 days have passed since the last ASX200 results file, redownlod ASX200 info
     else:
-        XJOlist.save_asx200_stocks_info(day_today)
-        path = '/Results/' + str(day_today) + '*.csv'
+        XJOlist.save_asx200_stocks_info()
+        path = './Results/' + str(day_today) + '*.csv'
         new_file = glob.glob(path)
         results_file = new_file
 
-    return results_file
+    return results_file[0]
 
 # Append .AX to each ticker to correspond to the ASX
 def add_to_end(s, end='.AX'):
     return s + end
 
 # Retrieve top 10 stocks based on returns, filtered from 12 to 6 to 3 month return windows
-def get_top_index(date):
+def get_top_index(date, ret_12, ret_6, ret_3):
 # Get Top 50 stocks in 12 month window. Use nlargest to sort for top 50
 # Do the same for top 30 with 6 month return
 # Do the same for top 10 with 3 month return
 # Implementing the above in a function where date is 'yyyy-mm-dd'
     top_50 = ret_12.loc[date].nlargest(50).index
     top_30 = ret_6.loc[date, top_50].nlargest(30).index
-    top_10 = ret_3.loc[date, top_30].nlargest(10).index
-    return top_10
+    top_10_index = ret_3.loc[date, top_30].nlargest(10).index
+    top_10 = ret_3.loc[date, top_30].nlargest(10)
+    return top_10_index, top_10
 
 # Creating a portfolio based on the strategy (for backtesting)
 def pf_performance(date):
@@ -149,46 +154,42 @@ def xjo_momentum(filename):
     # Drop all columns with NaN cell values, this is to reduce Survivorship Bias in the backtest
     df = df.dropna(axis=1)
 
-    # Resample data and calculate monthly returns
-    mtl.index = pd.to_datetime(mtl.index)
+        # Resample data and calculate monthly returns
+    df.index = pd.to_datetime(df.index)
+    # df['Date'] = pd.to_datetime(df['Date'])
     mtl = (df.pct_change() +1)[1:].resample('M').prod()
 
     # Get 12, 6 and 3 months rolling return data frames
     # Note that for the 12 month return needs the first 11 rows discarded as they will be NaN. 5 for 6 month and 2 for 3 month.
+    global ret_12, ret_6, ret_3
     ret_12, ret_6, ret_3 = get_rolling_ret(mtl,12),get_rolling_ret(mtl,6),get_rolling_ret(mtl,3)
 
     # Save Top 10 dataframe to csv
     # NOTE date to be updated here to be last date of last month
     datestr = str(prev_date.year) + '-' + str(prev_date.month) + '-' + str(last_day_prevmonth)
     # top10_list = get_top_index('2022-12-31')
-    top10_list = get_top_index(datestr)
-    path = '/Results/' + str(day_today) + 'top_10.csv'
-    top10_list.to_csv(filename)
+    top10_list = get_top_index(datestr, ret_12, ret_6, ret_3)
+    path = './Results/' + str(day_today) + '_top_10.csv'
+    top10_df = pd.DataFrame(top10_list[1])
+    top10_df.to_csv(path)
 
     # Convert Top 10 dataframe to list
-    top10_list = top10_list.to_list()
+    # top10_list = top10_list[1].to_list()
     # Print top10_list
-    top10_list
+    print('\n Top 10 of ASX200 for the past month with rolling 3 month returns is:')
+    print(top10_df)
 
-
-
-    # Find 3 month returns of top10 list to compare against momentum of XJO
-    ret_3[top10_list]
-    #ret_3.query('Ticker in @top10_list')
 
 if __name__ == '__main__':
 
     print("Enter 'q' at any time to quit.")
     while True:
-        choice = input("\n1) Check for ASX200 monthly data: \n2) Return Top 10 of ASX200: \n3) Find 3 month returns of Top 10 list (can only be run after item 2): \n")
+        choice = input("\n1) Check for ASX200 monthly data: \n2) Return Top 10 of ASX200: \n")
         if choice == 'q':
             break
         if choice == '1':
             results = ASX200_month_data()
-            print(results)
+            print("Data found, file is: " + results)
+            # print(results)
         if choice == '2':
             xjo_momentum(results)
-        if choice == '3':
-            date = str(results[0:9])
-            print(date)
-            get_top_index(date)
