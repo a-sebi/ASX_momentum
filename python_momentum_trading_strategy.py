@@ -31,6 +31,7 @@ This then saves the data as a `csv` file which can be imported and utilised.
 
 """# Strategy Program"""
 
+<<<<<<< HEAD
 import pandas as pd
 import yfinance as yf
 import numpy as np
@@ -75,11 +76,54 @@ ticker_df
 # Again, ticker_df[1] only if reading from Wikipedia. Also "Code" corresponds to the ticker column in that case
 #tickers = ticker_df[1].Code.to_list()
 tickers = ticker_df.Ticker.to_list()
+=======
+from datetime import date, timedelta
+import XJOlist
+import calendar
+import glob
+import numpy as np
+import pandas as pd
+import yfinance as yf
+
+# Set global variables for dates
+# Note that this doesn't work with the edge case of running the script around the start of each month
+# as days_in_month = 30.42 so it'll go back too far in certain cases
+#
+day_today = date.today()
+days_in_month = 365 / 12
+prev_date = day_today - timedelta(days = days_in_month)
+last_day_prevmonth = calendar.monthrange(prev_date.year,prev_date.month)[1]
+
+# Function to pull ASX200 from previous month, or re-download if older than 30 days
+def ASX200_month_data():
+    # Find filename corresponding to previous month
+    path = './Results/' + str(prev_date)[:7] + '*.csv'
+    old_file1 = glob.glob(path)
+    # Find filename corresponding to this month
+    path2 = './Results/' + str(date.today())[:7] + '*.csv'
+    old_file2 = glob.glob(path2)
+
+    # If 30 days have not passed since the last ASX200 results file, use old results file
+    if old_file1 or old_file2 and (day_today-prev_date).days <= days_in_month:
+        if old_file1:
+            results_file = old_file
+        elif old_file2:
+            results_file = old_file2
+    # If 30 days have passed since the last ASX200 results file, redownlod ASX200 info
+    else:
+        XJOlist.save_asx200_stocks_info()
+        path = './Results/' + str(day_today) + '*.csv'
+        new_file = glob.glob(path)
+        results_file = new_file
+
+    return results_file[0]
+>>>>>>> develop
 
 # Append .AX to each ticker to correspond to the ASX
 def add_to_end(s, end='.AX'):
     return s + end
 
+<<<<<<< HEAD
 result = list(map(add_to_end, tickers))
 
 # Store price data (close prices) from 2018-01-01 in a new dataframe for each ticker in the list
@@ -99,21 +143,34 @@ def get_rolling_ret(df,n):
 # Note that for the 12 month return needs the first 11 rows discarded as they will be NaN. 5 for 6 month and 2 for 3 month.
 ret_12, ret_6, ret_3 = get_rolling_ret(mtl,12),get_rolling_ret(mtl,6),get_rolling_ret(mtl,3)
 
+=======
+# Retrieve top 10 stocks based on returns, filtered from 12 to 6 to 3 month return windows
+def get_top_index(date, ret_12, ret_6, ret_3):
+>>>>>>> develop
 # Get Top 50 stocks in 12 month window. Use nlargest to sort for top 50
 # Do the same for top 30 with 6 month return
 # Do the same for top 10 with 3 month return
 # Implementing the above in a function where date is 'yyyy-mm-dd'
+<<<<<<< HEAD
 def get_top_index(date):
     top_50 = ret_12.loc[date].nlargest(50).index
     top_30 = ret_6.loc[date, top_50].nlargest(30).index
     top_10 = ret_3.loc[date, top_30].nlargest(10).index
     return top_10
+=======
+    top_50 = ret_12.loc[date].nlargest(50).index
+    top_30 = ret_6.loc[date, top_50].nlargest(30).index
+    top_10_index = ret_3.loc[date, top_30].nlargest(10).index
+    top_10 = ret_3.loc[date, top_30].nlargest(10)
+    return top_10_index, top_10
+>>>>>>> develop
 
 # Creating a portfolio based on the strategy (for backtesting)
 def pf_performance(date):
     portfolio = mtl.loc[date:,get_top_index(date)][1:2]
     return portfolio.mean(axis=1).values[0]
 
+<<<<<<< HEAD
 returns = []
 for date in mtl.index[:-1]:
     returns.append(pf_performance(date))
@@ -142,3 +199,105 @@ top10_list
 # Find 3 month returns of top10 list to compare against momentum of XJO
 ret_3[top10_list]
 #ret_3.query('Ticker in @top10_list')
+=======
+# Backtest
+def pf_backtest():
+
+    returns = []
+    for date in mtl.index[:-1]:
+        returns.append(pf_performance(date))
+
+    # Convert this to a series
+    # Take cumulative product to see the equity curve
+    pd.Series(returns,index=mtl.index[1:]).cumprod().plot()
+
+    # Compare the performance of this strategy against the ASX200 XJO
+    nas_df = yf.download('^AXJO',start='2018-01-01')
+    (nas_df['Adj Close'].pct_change() +1).cumprod().plot()
+
+    # Resample data and calculate monthly returns
+    mtl_xjo = (nas_df.pct_change() +1)[1:].resample('M').prod()
+
+    # Get 3 month rolling return
+    ret_3_xjo = get_rolling_ret(mtl_xjo,3)
+    ret_3_xjo
+
+    ret_3
+
+# Calculate rolling return of individual stock
+def get_ticker_ret(ticker):
+
+    df_tick = yf.download(ticker,start='2020-01-01')['Adj Close']
+    df_tick = df_tick.dropna(axis=1)
+    mtl_tick = (df.pct_change() + 1)[1:].resample('M').prod()
+    tick_12, tick_6, tick_3 = get_rolling_ret(mtl_tick,12),get_rolling_ret(mtl_tick,6),get_rolling_ret(mtl_tick,3)
+
+# Calculate rolling returns of datafram
+def get_rolling_ret(df,n):
+    return df.rolling(n).apply(np.prod)
+
+# Download financial data with yfinance
+def yfin_download(ticker, date):
+
+    df = yf.download(ticker,start=date)['Adj Close']
+
+# Calculate momentum of ASX200
+def xjo_momentum(filename):
+    # Retrieve ASX200 as a dataframe
+    # ticker_df = pd.read_csv("Results/20230114-ASX200.csv")
+    ticker_df = pd.read_csv(filename)
+
+    # Convert Code column (tickers) to a list
+    # Again, ticker_df[1] only if reading from Wikipedia. Also "Code" corresponds to the ticker column in that case
+    #tickers = ticker_df[1].Code.to_list()
+    tickers = ticker_df.Ticker.to_list()
+
+    result = list(map(add_to_end, tickers))
+
+    # Store price data (close prices) from 2018-01-01 in a new dataframe for each ticker in the list
+    df = yf.download(result,start='2018-01-01')['Adj Close']
+    # df = yfin_download(result,'2018-01-01')
+
+    # Drop all columns with NaN cell values, this is to reduce Survivorship Bias in the backtest
+    df = df.dropna(axis=1)
+
+        # Resample data and calculate monthly returns
+    df.index = pd.to_datetime(df.index)
+    # df['Date'] = pd.to_datetime(df['Date'])
+    mtl = (df.pct_change() +1)[1:].resample('M').prod()
+
+    # Get 12, 6 and 3 months rolling return data frames
+    # Note that for the 12 month return needs the first 11 rows discarded as they will be NaN. 5 for 6 month and 2 for 3 month.
+    global ret_12, ret_6, ret_3
+    ret_12, ret_6, ret_3 = get_rolling_ret(mtl,12),get_rolling_ret(mtl,6),get_rolling_ret(mtl,3)
+
+    # Save Top 10 dataframe to csv
+    # NOTE date to be updated here to be last date of last month
+    datestr = str(prev_date.year) + '-' + str(prev_date.month) + '-' + str(last_day_prevmonth)
+    # top10_list = get_top_index('2022-12-31')
+    top10_list = get_top_index(datestr, ret_12, ret_6, ret_3)
+    path = './Results/' + str(day_today) + '_top_10.csv'
+    top10_df = pd.DataFrame(top10_list[1])
+    top10_df.to_csv(path)
+
+    # Convert Top 10 dataframe to list
+    # top10_list = top10_list[1].to_list()
+    # Print top10_list
+    print('\n Top 10 of ASX200 for the past month with rolling 3 month returns is:')
+    print(top10_df)
+
+
+if __name__ == '__main__':
+
+    print("Enter 'q' at any time to quit.")
+    while True:
+        choice = input("\n1) Check for ASX200 monthly data: \n2) Return Top 10 of ASX200: \n")
+        if choice == 'q':
+            break
+        if choice == '1':
+            results = ASX200_month_data()
+            print("Data found, file is: " + results)
+            # print(results)
+        if choice == '2':
+            xjo_momentum(results)
+>>>>>>> develop

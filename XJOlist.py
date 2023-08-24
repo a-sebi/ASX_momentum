@@ -17,13 +17,23 @@ def save_asx200_stocks_info():
     dr.implicitly_wait(10)
 
     # Find button to view all 200 companies
+<<<<<<< HEAD
     button = dr.find_element(By.CLASS_NAME, "loadButton-Hg5JK_G3")
+=======
+    # button = dr.find_element(By.CLASS_NAME, "loadButton-Hg5JK_G3")
+    button = dr.find_element(By.CLASS_NAME, "loadButton-SFwfC2e0")
+>>>>>>> develop
 
     # Use Javascript to click the button rather than a "natural click" implemented by Selenium which has issues
     dr.execute_script("arguments[0].click();", button)
 
     # Wait for the table to fully load, this line checks to see that the button becomes invisible
+<<<<<<< HEAD
     elem = WebDriverWait(dr, 10).until(ec.invisibility_of_element_located((By.CLASS_NAME, "loadButton-Hg5JK_G3")))
+=======
+    # elem = WebDriverWait(dr, 10).until(ec.invisibility_of_element_located((By.CLASS_NAME, "loadButton-Hg5JK_G3")))
+    elem = WebDriverWait(dr, 10).until(ec.invisibility_of_element_located((By.CLASS_NAME, "loadButton-SFwfC2e0")))
+>>>>>>> develop
 
     # Use the webdriver to save the html source (after the table has loaded with all ASX200 companies)
     html = dr.page_source
@@ -68,6 +78,7 @@ def save_asx200_stocks_info():
     df = pd.concat([df, pd.DataFrame(rows)], ignore_index=True)
 
     # Return dataframe
+<<<<<<< HEAD
     return df
 
 # Call function to retrieve data
@@ -88,3 +99,25 @@ asx200_filename = os.path.join("Results", (date_today + '_ASX200.csv'))
 asx200.to_csv(asx200_filename)
 
 print("ASX200 data for today's date " + date_today + " saved to " + asx200_filename)
+=======
+    # return df
+
+    # Call function to retrieve data
+    # asx200 = save_asx200_stocks_info()
+
+    # Get current date
+    date_today = str(date.today())
+
+    # Check if Results folder exists, if not create it
+    if os.path.exists('Results'):
+        pass
+    else:
+        os.makedirs('Results')
+
+    # Create filename with path
+    asx200_filename = os.path.join("Results", (date_today + '_ASX200.csv'))
+    # Save dataframe to csv
+    df.to_csv(asx200_filename)
+
+    print("ASX200 data for today's date " + date_today + " saved to " + asx200_filename)
+>>>>>>> develop

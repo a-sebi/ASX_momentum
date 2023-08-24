@@ -1,1 +1,6 @@
 /geckodriver.log
+<<<<<<< HEAD
+=======
+/venv
+/__pycache__/
+>>>>>>> develop
