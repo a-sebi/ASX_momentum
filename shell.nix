@@ -5,6 +5,7 @@
     python310
     python310Packages.pip
     python310Packages.virtualenv
+    python310Packages.beautifulsoup4
     python310Packages.numpy
     python310Packages.requests
     zlib
